@@ -1,6 +1,6 @@
 import os
 
-import common.extern as cext
+import extern as ext
 
 
 def create_dir_for_filepath(filepath):
@@ -13,5 +13,5 @@ def create_dir_for_filepath(filepath):
 
         return True
     except OSError as e:
-        cext.logger.warning('common: files.py: failed to create directory for filepath {}: exception: {}'.format(filepath, e))
+        ext.logger.warning('common: files.py: failed to create directory for filepath {}: exception: {}'.format(filepath, e))
         return False

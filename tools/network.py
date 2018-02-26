@@ -14,10 +14,6 @@ def get_file(filepath, url):
 
     try:
 
-        if not files.create_dir_for_filepath(filepath):
-            ext.logger.error('network.py: get_file: directory for file {} was not created...'.format(filepath))
-            return False
-
         response = requests.get(url, stream=True)
 
         if response.status_code != requests.codes.ok:

@@ -1,5 +1,8 @@
 import logging
 
+# general
+App = None
+
 # log
 LogFilename = 'memes_bot.log'
 
@@ -19,9 +22,10 @@ MemesChannelId = '@best_of_memes'
 # other
 FilenameTemp = 'temp'
 
+TimerSecondsMultiplier = 1000
 
 IdVkSerg = '35280311'
-IdVkGeraId = '249354007'
+IdVkGera = '249354007'
 
 IdVkMemesAlbum = '000'
 IdVkRunCityAlbum = '214728539'

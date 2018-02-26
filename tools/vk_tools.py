@@ -7,9 +7,15 @@ import tools.network as ntools
 
 
 VkAccessToken = 'a29a964a53a1b6329d0011a089ab0a496b6ef4886b1585261ad6d4f2bd817b8910e894aa3e89602fd2565'
+# VkAccessToken = '3d0818b4b520a549fa178d21f735605870e8a2b6efdb0ff7362cf1de6c5e9b0f3c97d8114921d14509e35'
 
 VkSession = vk.AuthSession(access_token=VkAccessToken)
 VkApi = vk.API(VkSession)
+
+KeyPhotoOwnerId = 'owner_id'
+KeyPhotoAlbumId = 'aid'
+KeyPhotoId = 'pid'
+KeyPhotoUrl = 'src_xxbig'
 
 
 class CAlbum:

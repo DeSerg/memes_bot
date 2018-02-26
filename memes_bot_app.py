@@ -1,28 +1,37 @@
+from PyQt5.QtCore import QCoreApplication
+
 import sys
 
 from modules.db import CDatabaseManager
+
+from bot.bot import CMemesBot
 
 import extern as ext
 import tools.tools as tools
 
 
-def setup_app():
+def setup_app(argv):
+
+    ext.App = QCoreApplication(argv)
 
     tools.prepare_log(ext.LogFilename)
 
     CDatabaseManager()
 
+    ext.logger.info('Started')
+
 
 def main(argv):
 
-    setup_app()
+    setup_app(argv)
+
+    bot = CMemesBot(ext.IdVkGera, 60 * 1, 60 * 20)
+    bot.start_bot()
 
     try:
-        pass
-        # vk_tools.load_photos(ext.IdVkGeraId, ext.IdVkMemesAlbum)
-        # vk.load_photos(ext.IdVkSerg, ext.IdVkRunCityAlbum)
+        sys.exit(ext.App.exec_())
     except Exception as e:
-        ext.logger.error('main: failed to load photos: {}'.format(e))
+        ext.logger.error('main: exception while execution: {}'.format(e))
 
 
 if __name__ == '__main__':

@@ -3,16 +3,15 @@ import logging.handlers as handlers
 
 import extern as ext
 
-import tools.files as files
+import tools.vk_tools as vk_tools
 
 
-def prepare_log(filepath, log_level=None):
+def prepare_log(filename, log_level=None):
 
     if log_level is None:
         log_level = logging.DEBUG
 
-    files.create_dir_for_filepath(filepath)
-    fh = handlers.TimedRotatingFileHandler(filepath, when='midnight')
+    fh = handlers.TimedRotatingFileHandler(filename, when='midnight')
     sh = logging.StreamHandler()
 
     # fh.setFormatter(logging.Formatter(clog.LogFormatNetwork))
@@ -24,9 +23,23 @@ def prepare_log(filepath, log_level=None):
     ext.logger.addHandler(sh)
 
 
-def photo_id(owner_id, album_id, photo_id):
+def get_photo_id_str(owner_id, album_id, photo_id):
     return '_'.join([owner_id, album_id, photo_id])
 
 
-def photo_id_from_photo(photo):
-    return photo_id(photo.owner_id, photo.album_id, photo.id)
+def get_photo_id(owner_id, album_id, photo_id):
+    owner_id_str = str(owner_id)
+    album_id_str = str(album_id)
+    photo_id_str = str(photo_id)
+    return get_photo_id_str(owner_id_str, album_id_str, photo_id_str)
+
+
+def get_photo_id_from_photo(photo):
+    owner_id = photo.get(vk_tools.KeyPhotoOwnerId)
+    album_id = photo.get(vk_tools.KeyPhotoAlbumId)
+    photo_id = photo.get(vk_tools.KeyPhotoId)
+
+    if owner_id is None or album_id is None or photo_id is None:
+        return None
+
+    return get_photo_id(owner_id, album_id, photo_id)
