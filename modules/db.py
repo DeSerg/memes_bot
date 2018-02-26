@@ -10,6 +10,7 @@ ColumnNameUserId = 'user_id'
 ColumnNameAlbumId = 'album_id'
 ColumnNamePhotoId = 'photo_id'
 ColumnNamePhotoMd5 = 'photo_md5'
+ColumnNamePhotoUrl = 'photo_url'
 
 TableNamePhotoQueue = 'photo_queue'
 TableNamePhotosUsed = 'photos_used'
@@ -22,6 +23,8 @@ class CDatabaseManager:
         def __init__(self):
             self.__connection = sqlite3.connect(ext.DatabaseFilename)
 
+        # private
+        # photo queue
         def __is_photo_in_queue(self, photo_id):
             cursor = self.__connection.cursor()
             cursor.execute("SELECT * FROM {} WHERE {} = '{}';".format(
@@ -53,6 +56,22 @@ class CDatabaseManager:
             ))
             self.__connection.commit()
 
+        def __get_next_photo_from_queue(self):
+            fail_value = None, None
+            try:
+                cursor = self.__connection.cursor()
+                cursor.execute("SELECT {}, {} FROM {};".format(
+                    ColumnNameId,
+                    ColumnNameAlbumId,
+                    TableNamePhotoQueue
+                ))
+                record = cursor.fetchone()
+                return record[0], record[1]
+            except Exception as e:
+                ext.logger.error('__CDatabaseManager: get_photo_from_queue: exception: {}'.format(e))
+                return fail_value
+
+        # photos used
         def __is_photo_used(self, photo_md5):
             cursor = self.__connection.cursor()
             cursor.execute("SELECT * FROM {} WHERE {} = '{}';".format(
@@ -79,6 +98,8 @@ class CDatabaseManager:
             ))
             self.__connection.commit()
 
+        # public
+        # album ids
         def load_album_ids(self):
             cursor = self.__connection.cursor()
             cursor.execute("SELECT * FROM {};".format(TableNameAlbumIds))
@@ -94,15 +115,33 @@ class CDatabaseManager:
             ))
             self.__connection.commit()
 
+        def remove_album_id(self, album_id):
+            cursor = self.__connection.cursor()
+            cursor.execute("DELETE FROM {} WHERE {} = {};".format(
+                TableNameAlbumIds,
+                ColumnNameAlbumId,
+                album_id,
+            ))
+            self.__connection.commit()
+
+        # photo queue
+        def get_next_photo_url_from_queue(self):
+            photo_id, photo_url = self.__get_next_photo_from_queue()
+            if photo_id is not None and photo_url is not None:
+                self.__remove_photo_from_queue(photo_id)
+            return photo_url
+
+        # photos used
+        def photo_used(self, photo_md5):
+            return self.__is_photo_used(photo_md5)
+
+        # other
         def verify_photos(self, photos):
 
             for photo in photos:
-                photo_id = tools.generate_photo_id(photo)
+                photo_id = tools.photo_id_from_photo(photo)
                 if not self.__is_photo_in_queue(photo_id):
                     self.__add_photo_to_queue(photo, photo_id)
-
-        def photo_used(self, photo_md5):
-            return self.__is_photo_used(photo_md5)
 
     __instance = None
 

@@ -11,6 +11,15 @@ logger = logging.getLogger(LoggerNameMemesBot)
 DatabaseFilename = 'memes_bot_databes.sqlite3'
 
 
+# telegram
+MemesBotToken = '521889438:AAHCG8IV1MEMCEEN7MAqbA9Bz2nKNru5afE'
+MemesChannelId = '@best_of_memes'
+
+
+# other
+FilenameTemp = 'temp'
+
+
 IdVkSerg = '35280311'
 IdVkGeraId = '249354007'
 
