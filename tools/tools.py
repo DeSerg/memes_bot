@@ -22,3 +22,7 @@ def prepare_log(filepath, log_level=None):
 
     ext.logger.addHandler(fh)
     ext.logger.addHandler(sh)
+
+
+def generate_photo_id(photo):
+    return '_'.join([photo.owner_id, photo.album_id, photo.id])

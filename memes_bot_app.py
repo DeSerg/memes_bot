@@ -1,7 +1,5 @@
 import sys
-import logging
 
-from modules import vk
 from modules.db import CDatabaseManager
 
 import extern as ext
