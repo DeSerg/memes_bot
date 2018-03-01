@@ -25,8 +25,7 @@ def main(argv):
 
     setup_app(argv)
 
-    # bot = CMemesBot(ext.IdVkGera, 60 * 1, 60 * 20)
-    bot = CMemesBot(ext.IdVkGera, 60 * 1, 60 * 20)
+    bot = CMemesBot(ext.IdVkGera, 60 * 5, 60 * 20)
     bot.start_bot()
 
     try:

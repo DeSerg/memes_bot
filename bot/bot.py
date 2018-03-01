@@ -65,8 +65,9 @@ class CMemesBot(QObject):
         dp.add_error_handler(self.error)
 
     def start_bot(self):
-        # self.post_timer.start(self.post_interval * ext.TimerSecondsMultiplier)
-        # self.update_timer.start(self.update_interval * ext.TimerSecondsMultiplier)
+        self.post_timer.start(self.post_interval * ext.TimerSecondsMultiplier)
+        self.update_timer.start(self.update_interval * ext.TimerSecondsMultiplier)
+
         # Start the Bot
         self.updater.start_polling()
 
