@@ -12,11 +12,11 @@ import tools.network as ntools
 from modules.db import CDatabaseManager
 
 
-CommandStart = 'command_start'
-CommandHelp = 'command_help'
+CommandStart = 'start'
+CommandHelp = 'help'
 CommandUpdatePhotos = 'update'
-CommandAddAlbum = 'command_add_album'
-CommandRemoveAlbum = 'command_remove_album'
+CommandAddAlbum = 'add_album'
+CommandRemoveAlbum = 'remove_album'
 CommandPostNext = 'post_next'
 
 
