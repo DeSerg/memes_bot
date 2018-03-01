@@ -1,6 +1,6 @@
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
-
+from random import randint
 import telegram
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
@@ -27,7 +27,10 @@ class CMemesBot(QObject):
         super().__init__()
 
         self.user_id = user_id
-        self.post_interval = post_interval
+        self.post_interval = post_interval / 2
+        self.post_interval_min_addition = 0
+        self.post_interval_max_addition = post_interval
+
         self.update_interval = update_interval
 
         self.post_timer = QTimer()
@@ -65,7 +68,7 @@ class CMemesBot(QObject):
         dp.add_error_handler(self.error)
 
     def start_bot(self):
-        self.post_timer.start(self.post_interval * ext.TimerSecondsMultiplier)
+        self.post_timer.singleShot(self.post_interval * ext.TimerSecondsMultiplier, self.on_post_timer)
         self.update_timer.start(self.update_interval * ext.TimerSecondsMultiplier)
 
         # Start the Bot
@@ -160,7 +163,15 @@ class CMemesBot(QObject):
     @pyqtSlot(name='on_post_timer')
     def on_post_timer(self):
         ext.logger.info('CMemesBot: on_post_timer')
-        self.post_next()
+
+        try:
+            self.post_next()
+        except Exception as e:
+            ext.logger.error('CMemesBot: on_post_timer: failed to post next: exception: {}'.format(e))
+
+        interval_addition = randint(self.post_interval_min_addition, self.post_interval_max_addition)
+        interval = (self.post_interval + interval_addition) * ext.TimerSecondsMultiplier
+        self.post_timer.singleShot(interval, self.on_post_timer)
 
     @pyqtSlot(name='on_update_timer')
     def on_update_timer(self):
