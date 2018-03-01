@@ -4,7 +4,9 @@ import logging
 App = None
 
 # log
+LogPath = 'log/'
 LogFilename = 'memes_bot.log'
+LogFilepath = LogPath + LogFilename
 
 LoggerNameMemesBot = 'logger_name_memes_bot'
 

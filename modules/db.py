@@ -53,7 +53,13 @@ class CDatabaseManager:
                 owner_id = photo.get(vk_tools.KeyPhotoOwnerId)
                 album_id = photo.get(vk_tools.KeyPhotoAlbumId)
                 photo_id = photo.get(vk_tools.KeyPhotoId)
-                photo_url = photo.get(vk_tools.KeyPhotoUrl)
+
+                photo_urls = list(filter(lambda url: url is not None, [photo.get(key_url) for key_url in vk_tools.KeysPhotoUrl]))
+                if not photo_urls:
+                    ext.logger.warning('__CDatabaseManager: __add_photo_to_queue: photo has no url')
+                    return
+
+                photo_url = photo_urls[-1]
 
                 cursor.execute("INSERT INTO {} VALUES ('{}', {}, {}, {}, '{}');".format(
                     TableNamePhotoQueue,
@@ -80,15 +86,19 @@ class CDatabaseManager:
             except Exception as e:
                 ext.logger.error('__CDatabaseManager: __remove_photo_from_queue: exception: {}'.format(e))
 
-        def __get_next_photo_from_queue(self):
+        def __get_next_photo_from_queue(self, random):
             fail_value = None, None
             try:
                 connection = self.create_connection()
                 cursor = connection.cursor()
-                cursor.execute("SELECT {}, {} FROM {};".format(
+                random_cmd = ''
+                if random:
+                    random_cmd = 'ORDER BY RANDOM()'
+                cursor.execute("SELECT {}, {} FROM {} {} LIMIT 1;".format(
                     ColumnNameId,
                     ColumnNamePhotoUrl,
-                    TableNamePhotoQueue
+                    TableNamePhotoQueue,
+                    random_cmd
                 ))
                 record = cursor.fetchone()
                 return record[0], record[1]
@@ -97,14 +107,14 @@ class CDatabaseManager:
                 return fail_value
 
         # photos used
-        def __is_photo_used(self, photo_md5):
+        def __is_photo_used(self, photo_id_text):
             try:
                 connection = self.create_connection()
                 cursor = connection.cursor()
                 cursor.execute("SELECT * FROM {} WHERE {} = '{}';".format(
                     TableNamePhotosUsed,
-                    ColumnNamePhotoMd5,
-                    photo_md5
+                    ColumnNameId,
+                    photo_id_text
                 ))
                 record = cursor.fetchone()
                 result = record is not None
@@ -112,20 +122,23 @@ class CDatabaseManager:
             except Exception as e:
                 ext.logger.error('__CDatabaseManager: __is_photo_used: exception: {}'.format(e))
 
-        def __set_photo_used(self, photo, photo_md5):
+        def __set_photo_used(self, photo_id_text):
             try:
+
+                owner_id, album_id, photo_id = photo_id_text.split('_')
+
                 connection = self.create_connection()
                 cursor = connection.cursor()
-                cursor.execute("INSERT INTO {} ({}, {}, {}, {}) VALUES ('{}', {}, {}, {}});".format(
+                cursor.execute("INSERT INTO {} ({}, {}, {}, {}) VALUES ('{}', {}, {}, {});".format(
                     TableNamePhotosUsed,
-                    ColumnNamePhotoMd5,
+                    ColumnNameId,
                     ColumnNameUserId,
                     ColumnNameAlbumId,
                     ColumnNamePhotoId,
-                    photo_md5,
-                    photo.owner_id,
-                    photo.album_id,
-                    photo.id
+                    photo_id_text,
+                    owner_id,
+                    album_id,
+                    photo_id
                 ))
                 connection.commit()
             except Exception as e:
@@ -171,31 +184,37 @@ class CDatabaseManager:
                 ext.logger.error('__CDatabaseManager: remove_album_id: exception: {}'.format(e))
 
         # photo queue
-        def get_next_photo_url_from_queue(self):
-            photo_id, photo_url = self.__get_next_photo_from_queue()
-            if photo_id is not None and photo_url is not None:
-                self.__remove_photo_from_queue(photo_id)
+        def get_next_photo_url_from_queue(self, random=False):
+            photo_id_text, photo_url = self.__get_next_photo_from_queue(random)
+            if photo_id_text is not None and photo_url is not None:
+                self.__remove_photo_from_queue(photo_id_text)
+                self.__set_photo_used(photo_id_text)
             return photo_url
-
-        # photos used
-        def photo_used(self, photo_md5):
-            return self.__is_photo_used(photo_md5)
 
         # other
         def verify_photos(self, photos):
 
-            for photo in photos:
-                photo_id = tools.get_photo_id_from_photo(photo)
+            photos_added = 0
 
-                if photo_id is None:
+            for photo in photos:
+                photo_id_text = tools.get_photo_id_from_photo(photo)
+
+                if photo_id_text is None:
                     continue
 
-                photo_in_queue = self.__is_photo_in_queue(photo_id)
+                if self.__is_photo_used(photo_id_text):
+                    continue
+
+                photo_in_queue = self.__is_photo_in_queue(photo_id_text)
                 if photo_in_queue is None:
+                    ext.logger.warning('__CDatabaseManager: verify_photos: failed to check if photo is in queue')
                     continue
 
                 if not photo_in_queue:
-                    self.__add_photo_to_queue(photo, photo_id)
+                    self.__add_photo_to_queue(photo, photo_id_text)
+                    photos_added += 1
+
+            return photos_added
 
     __instance = None
 

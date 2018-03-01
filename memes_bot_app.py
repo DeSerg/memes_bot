@@ -14,7 +14,7 @@ def setup_app(argv):
 
     ext.App = QCoreApplication(argv)
 
-    tools.prepare_log(ext.LogFilename)
+    tools.prepare_log(ext.LogFilepath)
 
     CDatabaseManager()
 
@@ -25,6 +25,7 @@ def main(argv):
 
     setup_app(argv)
 
+    # bot = CMemesBot(ext.IdVkGera, 60 * 1, 60 * 20)
     bot = CMemesBot(ext.IdVkGera, 60 * 1, 60 * 20)
     bot.start_bot()
 

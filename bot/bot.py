@@ -39,7 +39,7 @@ class CMemesBot(QObject):
         self.db_manager = CDatabaseManager.instance()
 
         self.album_ids = self.db_manager.load_album_ids()
-        self.albums = [vk_tools.CAlbum(self.user_id, album_id) for album_id in ext.AlbumIds]
+        self.albums = [vk_tools.CAlbum(self.user_id, album_id) for album_id in self.album_ids]
 
         # self.bot = telegram.Bot(token=ext.MemesBotToken)
 
@@ -79,8 +79,11 @@ class CMemesBot(QObject):
         try:
             with open(picture_filepath, 'rb') as f:
                 self.updater.bot.sendPhoto(ext.MemesChannelId, photo=f, caption=caption)
+
+            return True
         except Exception as e:
             ext.logger.error('CMemesBot: __send_picture: failed to send photo: exception: {}'.format(e))
+            return False
 
     def error(self, bot, update, error):
         ext.logger.warning('Update "{}" caused error "{}"'.format(update, error))
@@ -94,16 +97,28 @@ class CMemesBot(QObject):
         update.message.reply_text('Commands:\n' + '\n'.join(command_list))
 
     def update_photos(self):
+        statistics = []
         for album_id in self.album_ids:
+            album_info = ['Альбом: {}'.format(album_id)]
+
+            # photos_ = vk_tools.photo_list(self.user_id, album_id)
+
             photos = vk_tools.load_photos_for_album(self.user_id, album_id)
             if photos is None:
+                album_info.append('Не удалось загрузить фото...')
                 continue
 
-            self.db_manager.verify_photos(photos)
+            album_info.append('Фотографий всего: {}'.format(len(photos)))
+
+            photos_added = self.db_manager.verify_photos(photos)
+            album_info.append('Фотографий добавлено в очередь: {}'.format(photos_added))
+            statistics.append('\n'.join(album_info))
+
+        return '\n\n'.join(statistics)
 
     def command_update_photos(self, bot, update):
-        self.update_photos()
-        update.message.reply_text('Успех!')
+        result = self.update_photos()
+        update.message.reply_text(result)
 
     def command_add_album(self, bot, update):
         # TODO get album id
@@ -125,17 +140,21 @@ class CMemesBot(QObject):
         update.message.reply_text('Успех!')
 
     def post_next(self):
-        photo_url = self.db_manager.get_next_photo_url_from_queue()
+
+        photo_url = self.db_manager.get_next_photo_url_from_queue(True)
 
         if not ntools.get_file(ext.FilenameTemp, photo_url):
             ext.logger.error('CMemesBot: post_next: failed to load photo for url {}'.format(photo_url))
-            return
+            return 'Не удалось загрузить фото...'
 
-        self.__send_picture(ext.FilenameTemp)
+        if not self.__send_picture(ext.FilenameTemp):
+            return 'Не удалось отправить изображение в канал...'
+
+        return 'Успех!'
 
     def command_post_next(self, bot, update):
-        self.post_next()
-        update.message.reply_text('Успех!')
+        result = self.post_next()
+        update.message.reply_text(result)
 
     @pyqtSlot(name='on_post_timer')
     def on_post_timer(self):
