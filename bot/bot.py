@@ -1,7 +1,6 @@
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
 from random import randint
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 
 import extern as ext
@@ -21,20 +20,7 @@ CommandRemoveAlbum = 'remove_album'
 CommandPostNext = 'post_next'
 
 
-CallbackDataLikePressed = "like"
-CallbackDataNeutralPressed = "neutral"
-CallbackDataDislikePressed = "dislike"
-
-
 LIST_OF_ADMINS = [ext.IdTelegramPopelmopel, ext.IdTelegramGera]
-
-ButtonList = [
-    InlineKeyboardButton("😂", callback_data=CallbackDataLikePressed),
-    InlineKeyboardButton("🤨", callback_data=CallbackDataNeutralPressed),
-    InlineKeyboardButton("😡", callback_data=CallbackDataDislikePressed)
-]
-
-ReplyMarkup = InlineKeyboardMarkup(t_tools.build_menu(ButtonList, n_cols=3))
 
 
 def check_allowed(update):
@@ -112,12 +98,13 @@ class CMemesBot(QObject):
         # start_polling() is non-blocking and will stop the bot gracefully.
         # self.updater.idle()
 
-    def __send_picture(self, picture_filepath, caption='', show_buttons=False):
+    def __send_picture(self, picture_filepath, show_buttons=False, caption=''):
         try:
 
             with open(picture_filepath, 'rb') as f:
                 if show_buttons:
-                    self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption, reply_markup=ReplyMarkup)
+                    self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption,
+                                               reply_markup=t_tools.build_reply_markup())
                 else:
                     self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption)
 
@@ -127,11 +114,24 @@ class CMemesBot(QObject):
             return False
 
     def handle_callback(self, bot, update):
-        # update.message.
-        ext.logger.info(update.message)
-        # CallbackDataLikePressed
-        # CallbackDataNeutralPressed
-        # CallbackDataDislikePressed
+        callback_query = update.callback_query
+        message = callback_query.message
+        message_id = message.message_id
+        user_id = callback_query.from_user.id
+
+        success, message = self.db_manager.change_feedback(callback_query.data, message_id, user_id)
+        if not success:
+            ext.logger.error('CMemesBot: handle_callback: failed to change feedback for message {} and user {}'.format(message_id, user_id))
+            return
+
+        likes, neutrals, dislikes = self.db_manager.count_feedback(message_id)
+
+        bot.editMessageReplyMarkup(
+            chat_id=self.telegram_channel_id,
+            message_id=message_id,
+            reply_markup=t_tools.build_reply_markup(likes, neutrals, dislikes))
+
+        bot.answerCallbackQuery(callback_query.id, message)
 
     def error(self, bot, update, error):
         ext.logger.warning('Update "{}" caused error "{}"'.format(update, error))
@@ -217,7 +217,7 @@ class CMemesBot(QObject):
             ext.logger.error('CMemesBot: post_next: failed to load photo for url {}'.format(photo_url))
             return 'Не удалось загрузить фото...'
 
-        if not self.__send_picture(ext.FilenameTemp):
+        if not self.__send_picture(ext.FilenameTemp, show_buttons=True):
             return 'Не удалось отправить изображение в канал...'
 
         return 'Успех!'
