@@ -9,9 +9,9 @@ from vk.exceptions import VkAPIError
 import extern as ext
 
 import tools.network as ntools
+import tools.credentials as credentials
 
-
-login, password = 'sergpopov95@gmail.com', '0iNsert1sOcial2fRame3'
+login, password = credentials.login, credentials.password
 vk_session = vk_api.VkApi(login, password)
 
 try:
