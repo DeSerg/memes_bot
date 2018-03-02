@@ -21,11 +21,11 @@ class CDatabaseManager:
 
     class __CDatabaseManager:
 
-        def __init__(self):
-            pass
+        def __init__(self, database_filename=ext.DatabaseFilename):
+            self.database_filename = database_filename
 
         def create_connection(self):
-            return sqlite3.connect(ext.DatabaseFilename)
+            return sqlite3.connect(self.database_filename)
 
         # private
         # photo queue
@@ -224,8 +224,8 @@ class CDatabaseManager:
             CDatabaseManager.__instance = CDatabaseManager.__CDatabaseManager()
         return CDatabaseManager.__instance
 
-    def __init__(self):
+    def __init__(self, database_filename):
         if not CDatabaseManager.__instance:
-            CDatabaseManager.__instance = CDatabaseManager.__CDatabaseManager()
+            CDatabaseManager.__instance = CDatabaseManager.__CDatabaseManager(database_filename)
         else:
             logging.warning('CDatabaseManager: CDatabaseManager: singleton has already been initialized')
