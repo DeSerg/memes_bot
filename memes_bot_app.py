@@ -8,6 +8,7 @@ from bot.bot import CMemesBot
 
 import extern as ext
 import tools.tools as tools
+import tools.credentials as credentials
 
 
 ArgTest = 'test'
@@ -26,14 +27,14 @@ def setup_app(database_filename, argv):
 
 def main(argv):
 
-    bot_token = ext.MemesBotToken
+    bot_token = credentials.MemesBotToken
     channel_id = ext.MemesChannelId
     database_filename = ext.DatabaseFilename
     test_mode = False
 
     if len(argv) > 0 and argv[0] == ArgTest:
         test_mode = True
-        bot_token = ext.MemesBotTestToken
+        bot_token = credentials.MemesBotTestToken
         channel_id = ext.MemesChannelTestId
         database_filename = ext.DatabaseTestFilename
 

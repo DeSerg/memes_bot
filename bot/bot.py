@@ -28,6 +28,14 @@ CallbackDataDislikePressed = "dislike"
 
 LIST_OF_ADMINS = [ext.IdTelegramPopelmopel, ext.IdTelegramGera]
 
+ButtonList = [
+    InlineKeyboardButton("😂", callback_data=CallbackDataLikePressed),
+    InlineKeyboardButton("🤨", callback_data=CallbackDataNeutralPressed),
+    InlineKeyboardButton("😡", callback_data=CallbackDataDislikePressed)
+]
+
+ReplyMarkup = InlineKeyboardMarkup(t_tools.build_menu(ButtonList, n_cols=3))
+
 
 def check_allowed(update):
     user_id = update.message.from_user.id
@@ -107,15 +115,11 @@ class CMemesBot(QObject):
     def __send_picture(self, picture_filepath, caption='', show_buttons=False):
         try:
 
-            button_list = [
-                InlineKeyboardButton("😂", callback_data=CallbackDataLikePressed),
-                InlineKeyboardButton("🤨", callback_data=CallbackDataNeutralPressed),
-                InlineKeyboardButton("😡", callback_data=CallbackDataDislikePressed)
-            ]
-            reply_markup = InlineKeyboardMarkup(t_tools.build_menu(button_list, n_cols=3))
-
             with open(picture_filepath, 'rb') as f:
-                self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption, reply_markup=reply_markup)
+                if show_buttons:
+                    self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption, reply_markup=ReplyMarkup)
+                else:
+                    self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption)
 
             return True
         except Exception as e:

@@ -21,9 +21,6 @@ DatabaseTestFilename = 'memes_bot_test_database.sqlite3'
 IdTelegramPopelmopel = 112946213
 IdTelegramGera = 121593595
 
-MemesBotToken = '521889438:AAHCG8IV1MEMCEEN7MAqbA9Bz2nKNru5afE'
-MemesBotTestToken = '503874443:AAGqMkWw9anTrwWVVu3szn4-hRD5mETSdp8'
-
 MemesChannelId = '@old_memes'
 MemesChannelTestId = '@best_of_memes_test'
 
