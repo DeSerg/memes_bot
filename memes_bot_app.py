@@ -8,24 +8,42 @@ from bot.bot import CMemesBot
 
 import extern as ext
 import tools.tools as tools
+import tools.credentials as credentials
 
 
-def setup_app(argv):
+ArgTest = 'test'
+
+
+def setup_app(database_filename, argv):
 
     ext.App = QCoreApplication(argv)
 
     tools.prepare_log(ext.LogFilepath)
 
-    CDatabaseManager()
+    CDatabaseManager(database_filename)
 
     ext.logger.info('Started')
 
 
 def main(argv):
 
-    setup_app(argv)
+    bot_token = credentials.MemesBotToken
+    channel_id = ext.MemesChannelId
+    database_filename = ext.DatabaseFilename
+    test_mode = False
 
-    bot = CMemesBot(ext.IdVkGera, 60 * 30, 60 * 120)
+    if len(argv) > 0 and argv[0] == ArgTest:
+        test_mode = True
+        bot_token = credentials.MemesBotTestToken
+        channel_id = ext.MemesChannelTestId
+        database_filename = ext.DatabaseTestFilename
+
+    setup_app(database_filename, argv[1:])
+
+    if test_mode:
+        ext.logger.info('test mode')
+
+    bot = CMemesBot(ext.IdVkGera, bot_token, channel_id, 60 * 30, 60 * 120)
     bot.start_bot()
 
     try:

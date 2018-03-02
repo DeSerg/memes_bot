@@ -1,12 +1,13 @@
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
 from random import randint
-import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 
 import extern as ext
 
-from tools import vk_tools
+import tools.telegram_tools as t_tools
+import tools.vk_tools as vk_tools
 import tools.network as ntools
 
 from modules.db import CDatabaseManager
@@ -20,13 +21,43 @@ CommandRemoveAlbum = 'remove_album'
 CommandPostNext = 'post_next'
 
 
+CallbackDataLikePressed = "like"
+CallbackDataNeutralPressed = "neutral"
+CallbackDataDislikePressed = "dislike"
+
+
+LIST_OF_ADMINS = [ext.IdTelegramPopelmopel, ext.IdTelegramGera]
+
+ButtonList = [
+    InlineKeyboardButton("😂", callback_data=CallbackDataLikePressed),
+    InlineKeyboardButton("🤨", callback_data=CallbackDataNeutralPressed),
+    InlineKeyboardButton("😡", callback_data=CallbackDataDislikePressed)
+]
+
+ReplyMarkup = InlineKeyboardMarkup(t_tools.build_menu(ButtonList, n_cols=3))
+
+
+def check_allowed(update):
+    user_id = update.message.from_user.id
+    if user_id in LIST_OF_ADMINS:
+        return True
+
+    ext.logger.warning("bot.py: restricted: unauthorized access denied for {}.".format(user_id))
+    update.message.reply_text('Извините, эта команда недоступна')
+    return False
+
+
 class CMemesBot(QObject):
 
-    def __init__(self, user_id, post_interval, update_interval):
+    def __init__(self, vk_user_id, telegram_bot_token, telegram_channel_id, post_interval, update_interval):
 
         super().__init__()
 
-        self.user_id = user_id
+        self.user_id = vk_user_id
+
+        self.telegram_bot_token = telegram_bot_token
+        self.telegram_channel_id = telegram_channel_id
+
         self.post_interval = post_interval / 2
         self.post_interval_min_addition = 0
         self.post_interval_max_addition = post_interval
@@ -46,7 +77,7 @@ class CMemesBot(QObject):
 
         # self.bot = telegram.Bot(token=ext.MemesBotToken)
 
-        self.updater = Updater(ext.MemesBotToken)
+        self.updater = Updater(self.telegram_bot_token)
 
         # Get the dispatcher to register handlers
         dp = self.updater.dispatcher
@@ -64,6 +95,8 @@ class CMemesBot(QObject):
         for command, method in self.command_map.items():
             dp.add_handler(CommandHandler(command, method))
 
+        dp.add_handler(CallbackQueryHandler(self.handle_callback))
+
         # log all errors
         dp.add_error_handler(self.error)
 
@@ -79,15 +112,26 @@ class CMemesBot(QObject):
         # start_polling() is non-blocking and will stop the bot gracefully.
         # self.updater.idle()
 
-    def __send_picture(self, picture_filepath, caption=''):
+    def __send_picture(self, picture_filepath, caption='', show_buttons=False):
         try:
+
             with open(picture_filepath, 'rb') as f:
-                self.updater.bot.sendPhoto(ext.MemesChannelId, photo=f, caption=caption)
+                if show_buttons:
+                    self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption, reply_markup=ReplyMarkup)
+                else:
+                    self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption)
 
             return True
         except Exception as e:
             ext.logger.error('CMemesBot: __send_picture: failed to send photo: exception: {}'.format(e))
             return False
+
+    def handle_callback(self, bot, update):
+        # update.message.
+        ext.logger.info(update.message)
+        # CallbackDataLikePressed
+        # CallbackDataNeutralPressed
+        # CallbackDataDislikePressed
 
     def error(self, bot, update, error):
         ext.logger.warning('Update "{}" caused error "{}"'.format(update, error))
@@ -96,6 +140,15 @@ class CMemesBot(QObject):
         update.message.reply_text('Hi!')
 
     def command_help(self, bot, update):
+
+        message = update.message
+        ext.logger.info(dir(message))
+        user = message.from_user
+        user_id = user.id
+        if user_id not in LIST_OF_ADMINS:
+            ext.logger.warning("bot.py: restricted: unauthorized access denied for {}.".format(user_id))
+            return
+
         command_list = self.command_map.keys()
         command_list = list(map(lambda command: '/' + command, command_list))
         update.message.reply_text('Commands:\n' + '\n'.join(command_list))
@@ -121,10 +174,20 @@ class CMemesBot(QObject):
         return '\n\n'.join(statistics)
 
     def command_update_photos(self, bot, update):
-        result = self.update_photos()
+        if not check_allowed(update):
+            return
+
+        try:
+            result = self.update_photos()
+        except Exception as e:
+            ext.logger.error('bot.py: command_update_photos: exception: {}'.format(e))
+            result = 'Неудача...'
+
         update.message.reply_text(result)
 
     def command_add_album(self, bot, update):
+        if not check_allowed(update):
+            return
         # TODO get album id
         album_id = 0
         if album_id not in self.album_ids:
@@ -135,6 +198,9 @@ class CMemesBot(QObject):
         update.message.reply_text('Успех!')
 
     def command_remove_album(self, bot, update):
+        if not check_allowed(update):
+            return
+
         # TODO get album id
         album_id = 0
         if album_id in self.album_ids:
@@ -157,7 +223,15 @@ class CMemesBot(QObject):
         return 'Успех!'
 
     def command_post_next(self, bot, update):
-        result = self.post_next()
+        if not check_allowed(update):
+            return
+
+        try:
+            result = self.post_next()
+        except Exception as e:
+            ext.logger.error('bot.py: command_post_next: exception: {}'.format(e))
+            result = 'Неудача...'
+
         update.message.reply_text(result)
 
     @pyqtSlot(name='on_post_timer')

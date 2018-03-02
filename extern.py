@@ -13,12 +13,16 @@ LoggerNameMemesBot = 'logger_name_memes_bot'
 logger = logging.getLogger(LoggerNameMemesBot)
 
 # database
-DatabaseFilename = 'memes_bot_databes.sqlite3'
+DatabaseFilename = 'memes_bot_database.sqlite3'
+DatabaseTestFilename = 'memes_bot_test_database.sqlite3'
 
 
 # telegram
-MemesBotToken = '521889438:AAHCG8IV1MEMCEEN7MAqbA9Bz2nKNru5afE'
-MemesChannelId = '@best_of_memes'
+IdTelegramPopelmopel = 112946213
+IdTelegramGera = 121593595
+
+MemesChannelId = '@old_memes'
+MemesChannelTestId = '@best_of_memes_test'
 
 
 # other
