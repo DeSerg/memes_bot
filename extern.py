@@ -41,8 +41,8 @@ FilenameTemp = 'temp'
 
 TimerSecondsMultiplier = 1000
 
-PostDelayMin = 30 * 60
-PostDelayMax = 60 * 60
+PostDelayMin = 20 * 60
+PostDelayMax = 150 * 60
 
 UpdateDelay = 120 * 60
 
