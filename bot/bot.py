@@ -125,16 +125,42 @@ class CMemesBot(QObject):
 
     def handle_callback(self, bot, update):
         callback_query = update.callback_query
+
         message = callback_query.message
         message_id = message.message_id
+
+        user = callback_query.from_user
         user_id = callback_query.from_user.id
 
-        success, message = self.db_manager.change_feedback(callback_query.data, message_id, user_id)
+        voice = callback_query.data
+
+        callback_info = 'user: {} {}, message_id: {}, voice: {}'.format(
+            user.first_name,
+            user.last_name,
+            message_id,
+            voice
+        )
+
+        ext.logger.info('CMemesBot: handle_callback: {}: obtaining started'.format(callback_info))
+
+        success, message = self.db_manager.change_feedback(voice, message_id, user_id)
         if not success:
-            ext.logger.error('CMemesBot: handle_callback: failed to change feedback for message {} and user {}'.format(message_id, user_id))
+            ext.logger.error('CMemesBot: handle_callback: {}: failed to change feedback'.format(callback_info))
             return
 
         likes, neutrals, dislikes = self.db_manager.count_feedback(message_id)
+
+        if likes is None:
+            ext.logger.info('CMemesBot: handle_callback: {}: failed to count likes...'.format(callback_info))
+            return
+
+        if neutrals is None:
+            ext.logger.info('CMemesBot: handle_callback: {}: failed to count neutrals...'.format(callback_info))
+            return
+
+        if dislikes is None:
+            ext.logger.info('CMemesBot: handle_callback: {}: failed to count dislikes...'.format(callback_info))
+            return
 
         bot.editMessageReplyMarkup(
             chat_id=self.telegram_channel_id,
@@ -142,6 +168,8 @@ class CMemesBot(QObject):
             reply_markup=t_tools.build_reply_markup(likes, neutrals, dislikes))
 
         bot.answerCallbackQuery(callback_query.id, message)
+
+        ext.logger.info('CMemesBot: handle_callback: {}: success'.format(callback_info))
 
     def error(self, bot, update, error):
         ext.logger.warning('Update "{}" caused error "{}"'.format(update, error))
