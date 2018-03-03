@@ -194,7 +194,7 @@ class CMemesBot(QObject):
     def update_photos(self):
         statistics = []
         for album_id in self.album_ids:
-            ext.logger.info('CMemesBot: update_photos: at album: {}'.format(album_id))
+            ext.logger.info('\nCMemesBot: update_photos: at album: {}'.format(album_id))
             album_info = ['Альбом: {}'.format(album_id)]
 
             # photos_ = vk_tools.photo_list(self.user_id, album_id)
