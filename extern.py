@@ -8,6 +8,17 @@ LogPath = 'log/'
 LogFilename = 'memes_bot.log'
 LogFilepath = LogPath + LogFilename
 
+KeyAscTime = 'asctime'
+KeyClientPcMac = 'client_pc_mac'
+KeyClientPcIp = 'client_pc_ip'
+KeyUserId = 'user_id'
+KeyLevelName = 'levelname'
+KeyMessage = 'message'
+
+HttpLogRequestHeaders = {"Content-type": "application/json"}
+
+LogFormat = '%({})s - %({})s - %({})s'.format(KeyAscTime, KeyLevelName, KeyMessage)
+
 LoggerNameMemesBot = 'logger_name_memes_bot'
 
 logger = logging.getLogger(LoggerNameMemesBot)

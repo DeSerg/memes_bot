@@ -19,8 +19,8 @@ def prepare_log(filename, log_level=None):
     fh = handlers.TimedRotatingFileHandler(filename, when='midnight')
     sh = logging.StreamHandler()
 
-    # fh.setFormatter(logging.Formatter(clog.LogFormatNetwork))
-    # sh.setFormatter(logging.Formatter(clog.LogFormatNetwork))
+    fh.setFormatter(logging.Formatter(ext.LogFormat))
+    sh.setFormatter(logging.Formatter(ext.LogFormat))
 
     ext.logger.setLevel(log_level)
 
