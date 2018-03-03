@@ -9,7 +9,7 @@ import modules.db as db
 
 FormatCounter = ' {}'
 FormatLikes = '😂{}'
-FormatNeutrals = '🤨{}'
+FormatNeutrals = '😕{}'
 FormatDislikes = '😡{}'
 
 
