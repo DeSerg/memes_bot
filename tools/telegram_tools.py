@@ -1,4 +1,8 @@
+import math
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+import extern as ext
 
 import modules.db as db
 
@@ -42,3 +46,4 @@ def build_reply_markup(likes=0, neutrals=0, dislikes=0):
     ]
 
     return InlineKeyboardMarkup(build_menu(button_list, n_cols=3))
+

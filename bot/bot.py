@@ -5,6 +5,7 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 
 import extern as ext
 
+import tools.tools as tools
 import tools.telegram_tools as t_tools
 import tools.vk_tools as vk_tools
 import tools.network as ntools
@@ -35,7 +36,14 @@ def check_allowed(update):
 
 class CMemesBot(QObject):
 
-    def __init__(self, vk_user_id, telegram_bot_token, telegram_channel_id, post_interval, update_interval):
+    def __init__(self,
+                 vk_user_id,
+                 telegram_bot_token,
+                 telegram_channel_id,
+                 post_interval_min=ext.PostDelayMin,
+                 post_interval_max=ext.PostDelayMax,
+                 update_interval=ext.UpdateDelay,
+                 best_minute=ext.MinuteBest):
 
         super().__init__()
 
@@ -44,11 +52,12 @@ class CMemesBot(QObject):
         self.telegram_bot_token = telegram_bot_token
         self.telegram_channel_id = telegram_channel_id
 
-        self.post_interval = post_interval / 2
-        self.post_interval_min_addition = 0
-        self.post_interval_max_addition = post_interval
+        self.post_interval_min = post_interval_min
+        self.post_interval_max = post_interval_max
 
         self.update_interval = update_interval
+
+        self.best_minute = best_minute
 
         self.post_timer = QTimer()
         self.post_timer.timeout.connect(self.on_post_timer)
@@ -87,7 +96,8 @@ class CMemesBot(QObject):
         dp.add_error_handler(self.error)
 
     def start_bot(self):
-        self.post_timer.singleShot(self.post_interval * ext.TimerSecondsMultiplier, self.on_post_timer)
+        delay = tools.current_delay(self.post_interval_min, self.post_interval_max, self.best_minute)
+        self.post_timer.singleShot(delay * ext.TimerSecondsMultiplier, self.on_post_timer)
         self.update_timer.start(self.update_interval * ext.TimerSecondsMultiplier)
 
         # Start the Bot
@@ -156,6 +166,7 @@ class CMemesBot(QObject):
     def update_photos(self):
         statistics = []
         for album_id in self.album_ids:
+            ext.logger.info('CMemesBot: update_photos: at album: {}'.format(album_id))
             album_info = ['Альбом: {}'.format(album_id)]
 
             # photos_ = vk_tools.photo_list(self.user_id, album_id)
@@ -165,15 +176,19 @@ class CMemesBot(QObject):
                 album_info.append('Не удалось загрузить фото...')
                 continue
 
+            ext.logger.info('CMemesBot: update_photos: photos total: {}'.format(len(photos)))
             album_info.append('Фотографий всего: {}'.format(len(photos)))
 
             photos_added = self.db_manager.verify_photos(photos)
+            ext.logger.info('CMemesBot: update_photos: photos added: {}'.format(photos_added))
             album_info.append('Фотографий добавлено в очередь: {}'.format(photos_added))
             statistics.append('\n'.join(album_info))
 
         return '\n\n'.join(statistics)
 
     def command_update_photos(self, bot, update):
+        ext.logger.info('CMemesBot: command_update_photos')
+
         if not check_allowed(update):
             return
 
@@ -223,6 +238,7 @@ class CMemesBot(QObject):
         return 'Успех!'
 
     def command_post_next(self, bot, update):
+        ext.logger.info('CMemesBot: command_post_next')
         if not check_allowed(update):
             return
 
@@ -232,6 +248,7 @@ class CMemesBot(QObject):
             ext.logger.error('bot.py: command_post_next: exception: {}'.format(e))
             result = 'Неудача...'
 
+        ext.logger.info('CMemesBot: command_post_next: {}'.format(result))
         update.message.reply_text(result)
 
     @pyqtSlot(name='on_post_timer')
@@ -243,9 +260,9 @@ class CMemesBot(QObject):
         except Exception as e:
             ext.logger.error('CMemesBot: on_post_timer: failed to post next: exception: {}'.format(e))
 
-        interval_addition = randint(self.post_interval_min_addition, self.post_interval_max_addition)
-        interval = (self.post_interval + interval_addition) * ext.TimerSecondsMultiplier
-        self.post_timer.singleShot(interval, self.on_post_timer)
+        delay = tools.current_delay(self.post_interval_min, self.post_interval_max, self.best_minute)
+        ext.logger.info('CMemesBot: on_post_timer: post successful, next in {} minutes'.format(delay / 60))
+        self.post_timer.singleShot(delay * ext.TimerSecondsMultiplier, self.on_post_timer)
 
     @pyqtSlot(name='on_update_timer')
     def on_update_timer(self):

@@ -75,7 +75,7 @@ class CDatabaseManager:
 
                 photo_url = photo_urls[-1]
 
-                cursor.execute("INSERT INTO {} VALUES ('{}', {}, {}, {}, '{}');".format(
+                cursor.execute("INSERT INTO {} VALUES ('{}', {}, '{}', {}, '{}');".format(
                     TableNamePhotoQueue,
                     photo_id_str,
                     owner_id,
@@ -143,7 +143,7 @@ class CDatabaseManager:
 
                 connection = self.create_connection()
                 cursor = connection.cursor()
-                cursor.execute("INSERT INTO {} ({}, {}, {}, {}) VALUES ('{}', {}, {}, {});".format(
+                cursor.execute("INSERT INTO {} ({}, {}, {}, {}) VALUES ('{}', {}, '{}', {});".format(
                     TableNamePhotosUsed,
                     ColumnNameId,
                     ColumnNameUserId,
