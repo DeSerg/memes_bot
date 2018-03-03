@@ -30,6 +30,17 @@ FilenameTemp = 'temp'
 
 TimerSecondsMultiplier = 1000
 
+PostDelayMin = 30 * 60
+PostDelayMax = 60 * 60
+
+UpdateDelay = 120 * 60
+
+MinuteBest = 19 * 60
+
+PercentCut = 0.1
+PercentAdd = 0.2
+
+
 IdVkSerg = '35280311'
 IdVkGera = '249354007'
 

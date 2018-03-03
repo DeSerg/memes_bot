@@ -12,10 +12,24 @@ ColumnNameAlbumId = 'album_id'
 ColumnNamePhotoId = 'photo_id'
 ColumnNamePhotoMd5 = 'photo_md5'
 ColumnNamePhotoUrl = 'photo_url'
+ColumnNameMessageId = 'message_id'
+ColumnNameTelegramUserId = 'telegram_user_id'
 
 TableNamePhotoQueue = 'photo_queue'
 TableNamePhotosUsed = 'photos_used'
 TableNameAlbumIds = 'album_ids'
+
+TableNameLikes = 'likes'
+TableNameNeutrals = 'neutrals'
+TableNameDislikes = 'dislikes'
+
+TableNamesFeedback = [TableNameLikes, TableNameNeutrals, TableNameDislikes]
+
+
+AddVoiceMessage = 'Ваш голос был учтен'
+# RemoveVoiceMessage = 'Ваш голос был удален'
+RemoveVoiceMessage = 'Ты охуел голос убирать!'
+
 
 class CDatabaseManager:
 
@@ -61,7 +75,7 @@ class CDatabaseManager:
 
                 photo_url = photo_urls[-1]
 
-                cursor.execute("INSERT INTO {} VALUES ('{}', {}, {}, {}, '{}');".format(
+                cursor.execute("INSERT INTO {} VALUES ('{}', {}, '{}', {}, '{}');".format(
                     TableNamePhotoQueue,
                     photo_id_str,
                     owner_id,
@@ -129,7 +143,7 @@ class CDatabaseManager:
 
                 connection = self.create_connection()
                 cursor = connection.cursor()
-                cursor.execute("INSERT INTO {} ({}, {}, {}, {}) VALUES ('{}', {}, {}, {});".format(
+                cursor.execute("INSERT INTO {} ({}, {}, {}, {}) VALUES ('{}', {}, '{}', {});".format(
                     TableNamePhotosUsed,
                     ColumnNameId,
                     ColumnNameUserId,
@@ -190,6 +204,94 @@ class CDatabaseManager:
                 self.__remove_photo_from_queue(photo_id_text)
                 self.__set_photo_used(photo_id_text)
             return photo_url
+
+        # likes
+        def __add_feedback(self, table_name, message_id, telegram_user_id):
+            try:
+                connection = self.create_connection()
+                cursor = connection.cursor()
+                cursor.execute("INSERT INTO {} VALUES ({}, {})".format(
+                    table_name,
+                    message_id,
+                    telegram_user_id
+                ))
+                connection.commit()
+                return True
+            except Exception as e:
+                ext.logger.error('__CDatabaseManager: __add_feedback: exception: {}'.format(e))
+                return False
+
+        def __remove_feedback(self, table_name, message_id, telegram_user_id):
+            try:
+                connection = self.create_connection()
+                cursor = connection.cursor()
+                cursor.execute("DELETE FROM {} WHERE {} = {} and {} = {};".format(
+                    table_name,
+                    ColumnNameMessageId,
+                    message_id,
+                    ColumnNameTelegramUserId,
+                    telegram_user_id
+                ))
+
+                connection.commit()
+                return True
+            except Exception as e:
+                ext.logger.error('__CDatabaseManager: __remove_feedback: exception: {}'.format(e))
+                return False
+
+        def change_feedback(self, table_name, message_id, telegram_user_id):
+            try:
+                connection = self.create_connection()
+                cursor = connection.cursor()
+                cursor.execute("SELECT * FROM {} WHERE {} = {} AND {} = {};".format(
+                    table_name,
+                    ColumnNameMessageId,
+                    message_id,
+                    ColumnNameTelegramUserId,
+                    telegram_user_id
+                ))
+                record = cursor.fetchone()
+                feedback_added = record is not None
+
+                if feedback_added:
+                    return self.__remove_feedback(table_name, message_id, telegram_user_id), RemoveVoiceMessage
+                else:
+                    success = True
+                    for tn in TableNamesFeedback:
+                        if tn == table_name:
+                            continue
+                        if not self.__remove_feedback(tn, message_id, telegram_user_id):
+                            success = False
+                    if not self.__add_feedback(table_name, message_id, telegram_user_id):
+                        success = False
+                    return success, AddVoiceMessage
+
+            except Exception as e:
+                ext.logger.error('__CDatabaseManager: __change_feedback: exception: {}'.format(e))
+                return False, None
+
+        def __count_feedback(self, table_name, message_id):
+            try:
+                connection = self.create_connection()
+                cursor = connection.cursor()
+                cursor.execute("SELECT COUNT(*) FROM {} WHERE {} = {};".format(
+                    table_name,
+                    ColumnNameMessageId,
+                    message_id
+                ))
+                record = cursor.fetchone()
+                return record[0]
+
+            except Exception as e:
+                ext.logger.error('__CDatabaseManager: __count_feedback: exception: {}'.format(e))
+                return None
+
+        def count_feedback(self, message_id):
+            likes = self.__count_feedback(TableNameLikes, message_id)
+            neutrals = self.__count_feedback(TableNameNeutrals, message_id)
+            dislikes = self.__count_feedback(TableNameDislikes, message_id)
+            return likes, neutrals, dislikes
+
 
         # other
         def verify_photos(self, photos):

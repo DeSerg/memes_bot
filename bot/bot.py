@@ -1,11 +1,11 @@
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
 from random import randint
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 
 import extern as ext
 
+import tools.tools as tools
 import tools.telegram_tools as t_tools
 import tools.vk_tools as vk_tools
 import tools.network as ntools
@@ -21,20 +21,7 @@ CommandRemoveAlbum = 'remove_album'
 CommandPostNext = 'post_next'
 
 
-CallbackDataLikePressed = "like"
-CallbackDataNeutralPressed = "neutral"
-CallbackDataDislikePressed = "dislike"
-
-
 LIST_OF_ADMINS = [ext.IdTelegramPopelmopel, ext.IdTelegramGera]
-
-ButtonList = [
-    InlineKeyboardButton("😂", callback_data=CallbackDataLikePressed),
-    InlineKeyboardButton("🤨", callback_data=CallbackDataNeutralPressed),
-    InlineKeyboardButton("😡", callback_data=CallbackDataDislikePressed)
-]
-
-ReplyMarkup = InlineKeyboardMarkup(t_tools.build_menu(ButtonList, n_cols=3))
 
 
 def check_allowed(update):
@@ -49,7 +36,14 @@ def check_allowed(update):
 
 class CMemesBot(QObject):
 
-    def __init__(self, vk_user_id, telegram_bot_token, telegram_channel_id, post_interval, update_interval):
+    def __init__(self,
+                 vk_user_id,
+                 telegram_bot_token,
+                 telegram_channel_id,
+                 post_interval_min=ext.PostDelayMin,
+                 post_interval_max=ext.PostDelayMax,
+                 update_interval=ext.UpdateDelay,
+                 best_minute=ext.MinuteBest):
 
         super().__init__()
 
@@ -58,11 +52,12 @@ class CMemesBot(QObject):
         self.telegram_bot_token = telegram_bot_token
         self.telegram_channel_id = telegram_channel_id
 
-        self.post_interval = post_interval / 2
-        self.post_interval_min_addition = 0
-        self.post_interval_max_addition = post_interval
+        self.post_interval_min = post_interval_min
+        self.post_interval_max = post_interval_max
 
         self.update_interval = update_interval
+
+        self.best_minute = best_minute
 
         self.post_timer = QTimer()
         self.post_timer.timeout.connect(self.on_post_timer)
@@ -101,7 +96,8 @@ class CMemesBot(QObject):
         dp.add_error_handler(self.error)
 
     def start_bot(self):
-        self.post_timer.singleShot(self.post_interval * ext.TimerSecondsMultiplier, self.on_post_timer)
+        delay = tools.current_delay(self.post_interval_min, self.post_interval_max, self.best_minute)
+        self.post_timer.singleShot(delay * ext.TimerSecondsMultiplier, self.on_post_timer)
         self.update_timer.start(self.update_interval * ext.TimerSecondsMultiplier)
 
         # Start the Bot
@@ -112,12 +108,13 @@ class CMemesBot(QObject):
         # start_polling() is non-blocking and will stop the bot gracefully.
         # self.updater.idle()
 
-    def __send_picture(self, picture_filepath, caption='', show_buttons=False):
+    def __send_picture(self, picture_filepath, show_buttons=False, caption=''):
         try:
 
             with open(picture_filepath, 'rb') as f:
                 if show_buttons:
-                    self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption, reply_markup=ReplyMarkup)
+                    self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption,
+                                               reply_markup=t_tools.build_reply_markup())
                 else:
                     self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption)
 
@@ -127,11 +124,24 @@ class CMemesBot(QObject):
             return False
 
     def handle_callback(self, bot, update):
-        # update.message.
-        ext.logger.info(update.message)
-        # CallbackDataLikePressed
-        # CallbackDataNeutralPressed
-        # CallbackDataDislikePressed
+        callback_query = update.callback_query
+        message = callback_query.message
+        message_id = message.message_id
+        user_id = callback_query.from_user.id
+
+        success, message = self.db_manager.change_feedback(callback_query.data, message_id, user_id)
+        if not success:
+            ext.logger.error('CMemesBot: handle_callback: failed to change feedback for message {} and user {}'.format(message_id, user_id))
+            return
+
+        likes, neutrals, dislikes = self.db_manager.count_feedback(message_id)
+
+        bot.editMessageReplyMarkup(
+            chat_id=self.telegram_channel_id,
+            message_id=message_id,
+            reply_markup=t_tools.build_reply_markup(likes, neutrals, dislikes))
+
+        bot.answerCallbackQuery(callback_query.id, message)
 
     def error(self, bot, update, error):
         ext.logger.warning('Update "{}" caused error "{}"'.format(update, error))
@@ -156,6 +166,7 @@ class CMemesBot(QObject):
     def update_photos(self):
         statistics = []
         for album_id in self.album_ids:
+            ext.logger.info('CMemesBot: update_photos: at album: {}'.format(album_id))
             album_info = ['Альбом: {}'.format(album_id)]
 
             # photos_ = vk_tools.photo_list(self.user_id, album_id)
@@ -165,15 +176,19 @@ class CMemesBot(QObject):
                 album_info.append('Не удалось загрузить фото...')
                 continue
 
+            ext.logger.info('CMemesBot: update_photos: photos total: {}'.format(len(photos)))
             album_info.append('Фотографий всего: {}'.format(len(photos)))
 
             photos_added = self.db_manager.verify_photos(photos)
+            ext.logger.info('CMemesBot: update_photos: photos added: {}'.format(photos_added))
             album_info.append('Фотографий добавлено в очередь: {}'.format(photos_added))
             statistics.append('\n'.join(album_info))
 
         return '\n\n'.join(statistics)
 
     def command_update_photos(self, bot, update):
+        ext.logger.info('CMemesBot: command_update_photos')
+
         if not check_allowed(update):
             return
 
@@ -217,12 +232,13 @@ class CMemesBot(QObject):
             ext.logger.error('CMemesBot: post_next: failed to load photo for url {}'.format(photo_url))
             return 'Не удалось загрузить фото...'
 
-        if not self.__send_picture(ext.FilenameTemp):
+        if not self.__send_picture(ext.FilenameTemp, show_buttons=True):
             return 'Не удалось отправить изображение в канал...'
 
         return 'Успех!'
 
     def command_post_next(self, bot, update):
+        ext.logger.info('CMemesBot: command_post_next')
         if not check_allowed(update):
             return
 
@@ -232,6 +248,7 @@ class CMemesBot(QObject):
             ext.logger.error('bot.py: command_post_next: exception: {}'.format(e))
             result = 'Неудача...'
 
+        ext.logger.info('CMemesBot: command_post_next: {}'.format(result))
         update.message.reply_text(result)
 
     @pyqtSlot(name='on_post_timer')
@@ -243,9 +260,9 @@ class CMemesBot(QObject):
         except Exception as e:
             ext.logger.error('CMemesBot: on_post_timer: failed to post next: exception: {}'.format(e))
 
-        interval_addition = randint(self.post_interval_min_addition, self.post_interval_max_addition)
-        interval = (self.post_interval + interval_addition) * ext.TimerSecondsMultiplier
-        self.post_timer.singleShot(interval, self.on_post_timer)
+        delay = tools.current_delay(self.post_interval_min, self.post_interval_max, self.best_minute)
+        ext.logger.info('CMemesBot: on_post_timer: post successful, next in {} minutes'.format(delay / 60))
+        self.post_timer.singleShot(delay * ext.TimerSecondsMultiplier, self.on_post_timer)
 
     @pyqtSlot(name='on_update_timer')
     def on_update_timer(self):

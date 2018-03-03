@@ -40,10 +40,12 @@ def main(argv):
 
     setup_app(database_filename, argv[1:])
 
+    # tools.print_delays()
+
     if test_mode:
         ext.logger.info('test mode')
 
-    bot = CMemesBot(ext.IdVkGera, bot_token, channel_id, 60 * 30, 60 * 120)
+    bot = CMemesBot(ext.IdVkGera, bot_token, channel_id)
     bot.start_bot()
 
     try:
