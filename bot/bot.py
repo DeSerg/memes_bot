@@ -124,13 +124,19 @@ class CMemesBot(QObject):
             return False
 
     def handle_callback(self, bot, update):
+        ext.logger.info('CMemesBot: handle_callback')
         callback_query = update.callback_query
+        ext.logger.info('CMemesBot: handle_callback: callback_query inited')
 
         message = callback_query.message
+        ext.logger.info('CMemesBot: handle_callback: message inited')
         message_id = message.message_id
+        ext.logger.info('CMemesBot: handle_callback: message id inited')
 
         user = callback_query.from_user
+        ext.logger.info('CMemesBot: handle_callback: user inited')
         user_id = callback_query.from_user.id
+        ext.logger.info('CMemesBot: handle_callback: user id inited')
 
         voice = callback_query.data
 
