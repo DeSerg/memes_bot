@@ -8,7 +8,37 @@ import extern as ext
 import tools.vk_tools as vk_tools
 
 
-MinutesInDay = 24 * 60
+DelayCoefficientDistribution = {
+    0: 0.2,
+    1: 0.5,
+    2: 0.7,
+    3: 0.9,
+    4: 1,
+    5: 1,
+    6: 0.3,
+    7: 0.2,
+    8: 0.2,
+    9: 0.2,
+    10: 0.1,
+    11: 0.1,
+    12: 0.1,
+    13: 0.1,
+    14: 0.1,
+    15: 0.1,
+    16: 0.07,
+    17: 0.05,
+    18: 0,
+    19: 0,
+    20: 0,
+    21: 0,
+    22: 0.05,
+    23: 0.1
+}
+
+MinutesInHour = 60
+
+HoursInDay = 24
+MinutesInDay = HoursInDay * MinutesInHour
 
 
 def prepare_log(filename, log_level=None):
@@ -52,10 +82,12 @@ def get_photo_id_from_photo(photo):
 
 def calculate_delay_seconds(min_delay, max_delay, best_minute, minute_of_the_day):
 
-    coeff = 1 - (1 + math.cos(2 * math.pi * (minute_of_the_day - best_minute) / MinutesInDay)) / 2
-    if coeff < 0 or coeff > 1:
+    # coeff = 1 - (1 + math.cos(2 * math.pi * (minute_of_the_day - best_minute) / MinutesInDay)) / 2
+    hour_of_the_day = minute_of_the_day // MinutesInHour
+    coeff = DelayCoefficientDistribution.get(hour_of_the_day)
+    if coeff is None or coeff < 0 or coeff > 1:
         ext.logger.error('tools.py: calculate_delay_seconds: invalid coefficient: {}'.format(coeff))
-        coeff = 0.5
+        coeff = 0.2
 
     return min_delay + coeff * (max_delay - min_delay)
 
@@ -69,6 +101,11 @@ def current_minute():
     return now.hour * 60 + now.minute
 
 
+def current_hour():
+    now = datetime.datetime.now()
+    return now.hour
+
+
 def current_delay(min_delay=ext.PostDelayMin, max_delay=ext.PostDelayMax, best_minute=ext.MinuteBest):
     minute = current_minute()
     delay = calculate_delay_seconds(min_delay, max_delay, best_minute, minute)
@@ -76,6 +113,6 @@ def current_delay(min_delay=ext.PostDelayMin, max_delay=ext.PostDelayMax, best_m
 
 
 def print_delays():
-    for i in range(MinutesInDay):
-        delay = calculate_delay_seconds(20, 60, 19 * 60, i)
-        print(delay)
+    for i in range(HoursInDay):
+        delay = calculate_delay_seconds(ext.PostDelayMin // MinutesInHour, ext.PostDelayMax // MinutesInHour, 19 * 60, i * MinutesInHour)
+        print('{}: {}'.format(i, delay))

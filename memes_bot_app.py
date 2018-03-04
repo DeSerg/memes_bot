@@ -40,7 +40,7 @@ def main(argv):
 
     setup_app(database_filename, argv[1:])
 
-    # tools.print_delays()
+    tools.print_delays()
 
     if test_mode:
         ext.logger.info('test mode')
