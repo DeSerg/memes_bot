@@ -1,7 +1,7 @@
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
 from random import randint
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
 
 import extern as ext
 
@@ -10,6 +10,7 @@ import tools.telegram_tools as t_tools
 import tools.vk_tools as vk_tools
 import tools.network as ntools
 
+import modules.db as db
 from modules.db import CDatabaseManager
 
 
@@ -19,14 +20,33 @@ CommandUpdatePhotos = 'update'
 CommandAddAlbum = 'add_album'
 CommandRemoveAlbum = 'remove_album'
 CommandPostNext = 'post_next'
+CommandSuggestMem = 'suggest_mem'
 
 
-LIST_OF_ADMINS = [ext.IdTelegramPopelmopel, ext.IdTelegramGera]
+AdminsList = [ext.IdTelegramPopelmopel, ext.IdTelegramGera]
+AdminsListVerifying = [ext.IdTelegramPopelmopel]
 
 
-def check_allowed(update):
+MessageFormatStart = '''Приветик!
+Этот бот позволяет предлагать мемы в канал {}.
+Чтобы предложить мем, просто отправь его боту!
+Если твой мем будет достаточно старым и несмешным, он будет запощен😉🤪
+Под твоим мемом в канале будет указан твой юзернейм😁
+'''
+
+MessageFormatNotifySuggestionReceived = 'Спасибо за мем!😉'
+MessageFormatSuggestedByUser = 'Прислал {} через {}'
+
+MessageFormatSuggestedByUserAdmin = 'By @{}'
+MessageSuggestedUsernameStart = 4
+
+MessageMemAccepted = 'Мем успешно запощен!'
+MessageMemRejected = 'Мем отвергнут...'
+
+
+def is_user_admin(update):
     user_id = update.message.from_user.id
-    if user_id in LIST_OF_ADMINS:
+    if user_id in AdminsList:
         return True
 
     ext.logger.warning("bot.py: restricted: unauthorized access denied for {}.".format(user_id))
@@ -91,6 +111,7 @@ class CMemesBot(QObject):
             dp.add_handler(CommandHandler(command, method))
 
         dp.add_handler(CallbackQueryHandler(self.handle_callback))
+        dp.add_handler(MessageHandler(Filters.photo, self.handle_mem_suggestion))
 
         # log all errors
         dp.add_error_handler(self.error)
@@ -108,35 +129,90 @@ class CMemesBot(QObject):
         # start_polling() is non-blocking and will stop the bot gracefully.
         # self.updater.idle()
 
-    def __send_picture(self, picture_filepath, show_buttons=False, caption=''):
+    def __post_mem_from_file(self, picture_filepath, show_buttons=False, caption=''):
         try:
-
             with open(picture_filepath, 'rb') as f:
+                reply_markup = None
                 if show_buttons:
-                    self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption,
-                                               reply_markup=t_tools.build_reply_markup())
-                else:
-                    self.updater.bot.sendPhoto(self.telegram_channel_id, photo=f, caption=caption)
+                    reply_markup = t_tools.build_reply_markup()
+
+                self.updater.bot.sendPhoto(self.telegram_channel_id,
+                                           photo=f,
+                                           caption=caption,
+                                           reply_markup=reply_markup)
 
             return True
         except Exception as e:
-            ext.logger.error('CMemesBot: __send_picture: failed to send photo: exception: {}'.format(e))
+            ext.logger.error('CMemesBot: __post_mem_from_file: failed to send photo: exception: {}'.format(e))
             return False
 
-    def handle_callback(self, bot, update):
-        ext.logger.info('CMemesBot: handle_callback')
+    def __post_mem_from_message(self, message, show_buttons=False, caption=''):
+        try:
+            photos = message.photo
+            if not photos:
+                ext.logger.warning('CMemesBot: __post_mem_from_message: no photo in message {}'.format(message.message_id))
+                return False
+
+            photo = t_tools.choose_photo_max_size(photos)
+            reply_markup = None
+            if show_buttons:
+                reply_markup = t_tools.build_reply_markup()
+
+            self.updater.bot.sendPhoto(self.telegram_channel_id,
+                                       photo=photo.file_id,
+                                       caption=caption,
+                                       reply_markup=reply_markup)
+            return True
+        except Exception as e:
+            ext.logger.error('CMemesBot: __post_mem_from_message: failed to send photo: exception: {}'.format(e))
+            return False
+
+    def handle_callback_accept_mem(self, bot, update):
+        ext.logger.info('CMemesBot: handle_callback_accept_mem')
+        try:
+            message = update.callback_query.message
+
+            username = message.caption[MessageSuggestedUsernameStart:]
+            message_caption = MessageFormatSuggestedByUser.format(username, ext.MemesChannelId)
+
+            self.__post_mem_from_message(message, show_buttons=True, caption=message_caption)
+
+            message_id = message.message_id
+            chat_id = message.chat_id
+
+            bot.editMessageReplyMarkup(chat_id=chat_id, message_id=message_id)
+            bot.sendMessage(chat_id=chat_id, text=MessageMemAccepted)
+
+        except Exception as e:
+            ext.logger.error('CMemesBot: handle_callback_accept_mem: exception: {}'.format(e))
+
+    def handle_callback_reject_mem(self, bot, update):
+        ext.logger.info('CMemesBot: handle_callback_reject_mem')
+
+        try:
+            message = update.callback_query.message
+            message_id = message.message_id
+            chat_id = message.chat_id
+
+            bot.editMessageReplyMarkup(chat_id=chat_id, message_id=message_id)
+            bot.sendMessage(chat_id=chat_id, text=MessageMemRejected)
+
+        except Exception as e:
+            ext.logger.error('CMemesBot: handle_callback_accept_mem: exception: {}'.format(e))
+            try:
+                update.message.reply_text('Все очень плохо...')
+            except:
+                ext.logger.error('CMemesBot: handle_callback_accept_mem: failed to tell about exception...')
+
+    def handle_callback_voice(self, bot, update):
+        ext.logger.info('CMemesBot: handle_callback_voice')
         callback_query = update.callback_query
-        ext.logger.info('CMemesBot: handle_callback: callback_query inited')
 
         message = callback_query.message
-        ext.logger.info('CMemesBot: handle_callback: message inited')
         message_id = message.message_id
-        ext.logger.info('CMemesBot: handle_callback: message id inited')
 
         user = callback_query.from_user
-        ext.logger.info('CMemesBot: handle_callback: user inited')
-        user_id = callback_query.from_user.id
-        ext.logger.info('CMemesBot: handle_callback: user id inited')
+        user_id = user.id
 
         voice = callback_query.data
 
@@ -177,11 +253,27 @@ class CMemesBot(QObject):
 
         ext.logger.info('CMemesBot: handle_callback: {}: success'.format(callback_info))
 
+    def handle_callback(self, bot, update):
+        ext.logger.info('CMemesBot: handle_callback')
+
+        try:
+            callback_query = update.callback_query
+            callback_data = callback_query.data
+
+            if callback_data == t_tools.CallbackPostSuggestionAccept:
+                self.handle_callback_accept_mem(bot, update)
+            elif callback_data == t_tools.CallbackPostSuggestionReject:
+                self.handle_callback_reject_mem(bot, update)
+            elif callback_data in db.TableNamesFeedback:
+                self.handle_callback_voice(bot, update)
+        except Exception as e:
+            ext.logger.error('CMemesBot: handle_callback: exception: {}'.format(e))
+
     def error(self, bot, update, error):
         ext.logger.warning('Update "{}" caused error "{}"'.format(update, error))
 
     def command_start(self, bot, update):
-        update.message.reply_text('Hi!')
+        update.message.reply_text(MessageFormatStart.format(ext.MemesChannelId))
 
     def command_help(self, bot, update):
 
@@ -189,7 +281,7 @@ class CMemesBot(QObject):
         ext.logger.info(dir(message))
         user = message.from_user
         user_id = user.id
-        if user_id not in LIST_OF_ADMINS:
+        if user_id not in AdminsList:
             ext.logger.warning("bot.py: restricted: unauthorized access denied for {}.".format(user_id))
             return
 
@@ -223,7 +315,7 @@ class CMemesBot(QObject):
     def command_update_photos(self, bot, update):
         ext.logger.info('CMemesBot: command_update_photos')
 
-        if not check_allowed(update):
+        if not is_user_admin(update):
             return
 
         try:
@@ -235,7 +327,7 @@ class CMemesBot(QObject):
         update.message.reply_text(result)
 
     def command_add_album(self, bot, update):
-        if not check_allowed(update):
+        if not is_user_admin(update):
             return
         # TODO get album id
         album_id = 0
@@ -247,7 +339,7 @@ class CMemesBot(QObject):
         update.message.reply_text('Успех!')
 
     def command_remove_album(self, bot, update):
-        if not check_allowed(update):
+        if not is_user_admin(update):
             return
 
         # TODO get album id
@@ -266,14 +358,14 @@ class CMemesBot(QObject):
             ext.logger.error('CMemesBot: post_next: failed to load photo for url {}'.format(photo_url))
             return 'Не удалось загрузить фото...'
 
-        if not self.__send_picture(ext.FilenameTemp, show_buttons=True):
+        if not self.__post_mem_from_file(ext.FilenameTemp, show_buttons=True):
             return 'Не удалось отправить изображение в канал...'
 
         return 'Успех!'
 
     def command_post_next(self, bot, update):
         ext.logger.info('CMemesBot: command_post_next')
-        if not check_allowed(update):
+        if not is_user_admin(update):
             return
 
         try:
@@ -284,6 +376,35 @@ class CMemesBot(QObject):
 
         ext.logger.info('CMemesBot: command_post_next: {}'.format(result))
         update.message.reply_text(result)
+
+    def handle_mem_suggestion(self, bot, update):
+        try:
+            update.message.reply_text(MessageFormatNotifySuggestionReceived)
+
+            if is_user_admin(update):
+                self.__post_mem_from_message(update.message, show_buttons=True)
+                return
+
+            t_tools.build_reply_markup_verify_mem()
+            message = update.message
+            photos = message.photo
+            if not photos:
+                update.message.reply_text('Ты забыл приложить мем)0')
+            photo = t_tools.choose_photo_max_size(photos)
+
+            verify_markup = t_tools.build_reply_markup_verify_mem()
+
+            user_name = message.from_user.username
+
+            for admin_id in AdminsListVerifying:
+                self.updater.bot.sendPhoto(
+                    admin_id,
+                    photo=photo.file_id,
+                    caption=MessageFormatSuggestedByUserAdmin.format(user_name),
+                    reply_markup=verify_markup)
+
+        except Exception as e:
+            ext.logger.error('CMemesBot: handle_mem_suggestion: exception: {}'.format(e))
 
     @pyqtSlot(name='on_post_timer')
     def on_post_timer(self):

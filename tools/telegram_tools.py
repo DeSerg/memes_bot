@@ -6,6 +6,10 @@ import extern as ext
 
 import modules.db as db
 
+CallbackPostSuggestionAccept = 'post_suggestion_accept'
+CallbackPostSuggestionReject = 'post_suggestion_reject'
+
+CallbacksPostSuggestion = [CallbackPostSuggestionAccept, CallbackPostSuggestionReject]
 
 FormatCounter = ' {}'
 FormatLikes = '😂{}'
@@ -47,3 +51,15 @@ def build_reply_markup(likes=0, neutrals=0, dislikes=0):
 
     return InlineKeyboardMarkup(build_menu(button_list, n_cols=3))
 
+
+def build_reply_markup_verify_mem():
+    button_list = [
+        InlineKeyboardButton('👍', callback_data=CallbackPostSuggestionAccept),
+        InlineKeyboardButton('👎', callback_data=CallbackPostSuggestionReject),
+    ]
+
+    return InlineKeyboardMarkup(build_menu(button_list, n_cols=2))
+
+
+def choose_photo_max_size(photos):
+    return max(photos, key=lambda photo: photo.width * photo.height)

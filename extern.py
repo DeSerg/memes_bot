@@ -32,6 +32,8 @@ DatabaseTestFilename = 'memes_bot_test_database.sqlite3'
 IdTelegramPopelmopel = 112946213
 IdTelegramGera = 121593595
 
+MemesBotName = '@old_memes_bot'
+
 MemesChannelId = '@old_memes'
 MemesChannelTestId = '@best_of_memes_test'
 
