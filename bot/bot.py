@@ -31,7 +31,6 @@ MessageFormatStart = '''Приветик!
 Этот бот позволяет предлагать мемы в канал {}.
 Чтобы предложить мем, просто отправь его боту!
 Если твой мем будет достаточно старым и несмешным, он будет запощен😉🤪
-Под твоим мемом в канале будет указан твой юзернейм😁
 '''
 
 MessageFormatNotifySuggestionReceived = 'Спасибо за мем!😉'
@@ -63,7 +62,8 @@ class CMemesBot(QObject):
                  post_interval_min=ext.PostDelayMin,
                  post_interval_max=ext.PostDelayMax,
                  update_interval=ext.UpdateDelay,
-                 best_minute=ext.MinuteBest):
+                 best_minute=ext.MinuteBest,
+                 show_buttons=False):
 
         super().__init__()
 
@@ -78,6 +78,8 @@ class CMemesBot(QObject):
         self.update_interval = update_interval
 
         self.best_minute = best_minute
+
+        self.show_buttons = show_buttons
 
         self.post_timer = QTimer()
         self.post_timer.timeout.connect(self.on_post_timer)
@@ -129,11 +131,11 @@ class CMemesBot(QObject):
         # start_polling() is non-blocking and will stop the bot gracefully.
         # self.updater.idle()
 
-    def __post_mem_from_file(self, picture_filepath, show_buttons=False, caption=''):
+    def __post_mem_from_file(self, picture_filepath, caption=''):
         try:
             with open(picture_filepath, 'rb') as f:
                 reply_markup = None
-                if show_buttons:
+                if self.show_buttons:
                     reply_markup = t_tools.build_reply_markup()
 
                 self.updater.bot.sendPhoto(self.telegram_channel_id,
@@ -146,7 +148,7 @@ class CMemesBot(QObject):
             ext.logger.error('CMemesBot: __post_mem_from_file: failed to send photo: exception: {}'.format(e))
             return False
 
-    def __post_mem_from_message(self, message, show_buttons=False, caption=''):
+    def __post_mem_from_message(self, message, caption=''):
         try:
             photos = message.photo
             if not photos:
@@ -155,7 +157,7 @@ class CMemesBot(QObject):
 
             photo = t_tools.choose_photo_max_size(photos)
             reply_markup = None
-            if show_buttons:
+            if self.show_buttons:
                 reply_markup = t_tools.build_reply_markup()
 
             self.updater.bot.sendPhoto(self.telegram_channel_id,
@@ -175,7 +177,7 @@ class CMemesBot(QObject):
             username = message.caption[MessageSuggestedUsernameStart:]
             message_caption = MessageFormatSuggestedByUser.format(username, ext.MemesChannelId)
 
-            self.__post_mem_from_message(message, show_buttons=True, caption=message_caption)
+            self.__post_mem_from_message(message, caption=message_caption)
 
             message_id = message.message_id
             chat_id = message.chat_id
@@ -358,7 +360,7 @@ class CMemesBot(QObject):
             ext.logger.error('CMemesBot: post_next: failed to load photo for url {}'.format(photo_url))
             return 'Не удалось загрузить фото...'
 
-        if not self.__post_mem_from_file(ext.FilenameTemp, show_buttons=True):
+        if not self.__post_mem_from_file(ext.FilenameTemp):
             return 'Не удалось отправить изображение в канал...'
 
         return 'Успех!'
@@ -382,7 +384,7 @@ class CMemesBot(QObject):
             update.message.reply_text(MessageFormatNotifySuggestionReceived)
 
             if is_user_admin(update):
-                self.__post_mem_from_message(update.message, show_buttons=True)
+                self.__post_mem_from_message(update.message)
                 return
 
             t_tools.build_reply_markup_verify_mem()
