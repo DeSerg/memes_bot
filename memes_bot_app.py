@@ -1,6 +1,7 @@
 from PyQt5.QtCore import QCoreApplication
 
 import sys
+import os
 
 from modules.db import CDatabaseManager
 
@@ -14,7 +15,18 @@ import tools.credentials as credentials
 ArgTest = 'test'
 
 
+def create_initial_directories():
+    # create vader app dir
+    try:
+        if not os.path.isdir(ext.LogFilepath):
+            os.makedirs(ext.LogFilepath)
+
+    except OSError as e:
+        print('memes_bot_app.py: create_initial_directories: failed to create initial directories: exception {}'.format(e))
+
+
 def setup_app(database_filename, argv):
+    create_initial_directories()
 
     ext.App = QCoreApplication(argv)
 
