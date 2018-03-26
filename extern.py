@@ -39,16 +39,19 @@ MemesChannelTestId = '@best_of_memes_test'
 
 
 # other
+MillisecondsInSecond = 1000
+MinutesInHour = 60
+HoursInDay = 24
+DaysInWeek = 7
+
 FilenameTemp = 'temp'
 
-TimerSecondsMultiplier = 1000
+PostDelayMin = 40 * MinutesInHour
+PostDelayMax = 150 * MinutesInHour
 
-PostDelayMin = 40 * 60
-PostDelayMax = 150 * 60
+UpdateDelay = 120 * MinutesInHour
 
-UpdateDelay = 120 * 60
-
-MinuteBest = 19 * 60
+MinuteBest = 19 * MinutesInHour
 
 PercentCut = 0.1
 PercentAdd = 0.2

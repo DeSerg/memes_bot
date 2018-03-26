@@ -1,6 +1,4 @@
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
-
-from random import randint
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
 
 import extern as ext
@@ -21,11 +19,17 @@ CommandAddAlbum = 'add_album'
 CommandRemoveAlbum = 'remove_album'
 CommandPostNext = 'post_next'
 CommandSuggestMem = 'suggest_mem'
+CommandGetPostIntervalMin = 'get_post_interval_min'
+CommandSetPostIntervalMin = 'set_post_interval_min'
+CommandGetPostIntervalMax = 'get_post_interval_max'
+CommandSetPostIntervalMax = 'set_post_interval_max'
 
 
 AdminsList = [ext.IdTelegramPopelmopel, ext.IdTelegramGera]
 AdminsListVerifying = [ext.IdTelegramPopelmopel]
 
+
+WordMinutes = 'минуты'
 
 MessageFormatStart = '''Приветик!
 Этот бот позволяет предлагать мемы в канал {}.
@@ -42,6 +46,14 @@ MessageSuggestedUsernameStart = 4
 MessageMemAccepted = 'Мем успешно запощен!'
 MessageMemRejected = 'Мем отвергнут...'
 
+MessagePassMinutesAsOneNumber = 'Пожалуйста, укажите минуты одним числом'
+
+MessageFormatPostIntervalMin = 'Минимальный интервал постов: {} {}'
+MessageFormatPostIntervalMinUpdated = 'Минимальный интервал постов теперь {} вместо {} {}'
+
+MessageFormatPostIntervalMax = 'Максимальный интервал постов: {} {}'
+MessageFormatPostIntervalMaxUpdated = 'Максимальный интервал постов теперь {} вместо {} {}'
+
 
 def is_user_admin(update):
     user_id = update.message.from_user.id
@@ -51,6 +63,12 @@ def is_user_admin(update):
     ext.logger.warning("bot.py: restricted: unauthorized access denied for {}.".format(user_id))
     update.message.reply_text('Извините, эта команда недоступна')
     return False
+
+
+def agree_minutes(minutes):
+    minutes_num = minutes // ext.MinutesInHour
+    minutes_word = tools.agree_word_with_number(WordMinutes, minutes_num)
+    return minutes_num, minutes_word
 
 
 class CMemesBot(QObject):
@@ -106,11 +124,24 @@ class CMemesBot(QObject):
             CommandUpdatePhotos: self.command_update_photos,
             CommandAddAlbum: self.command_add_album,
             CommandRemoveAlbum: self.command_remove_album,
-            CommandPostNext: self.command_post_next
+            CommandPostNext: self.command_post_next,
+            CommandGetPostIntervalMin: self.command_get_post_interval_min,
+            CommandGetPostIntervalMax: self.command_get_post_interval_max,
         }
 
         for command, method in self.command_map.items():
             dp.add_handler(CommandHandler(command, method))
+
+        dp.add_handler(CommandHandler(
+            CommandSetPostIntervalMin,
+            self.command_set_post_interval_min,
+            pass_args=True
+        ))
+
+        dp.add_handler(CommandHandler(
+            CommandSetPostIntervalMax,
+            self.command_set_post_interval_max,
+            pass_args=True))
 
         dp.add_handler(CallbackQueryHandler(self.handle_callback))
         dp.add_handler(MessageHandler(Filters.photo, self.handle_mem_suggestion))
@@ -120,8 +151,8 @@ class CMemesBot(QObject):
 
     def start_bot(self):
         delay = tools.current_delay(self.post_interval_min, self.post_interval_max, self.best_minute)
-        self.post_timer.singleShot(delay * ext.TimerSecondsMultiplier, self.on_post_timer)
-        self.update_timer.start(self.update_interval * ext.TimerSecondsMultiplier)
+        self.post_timer.singleShot(delay * ext.MillisecondsInSecond, self.on_post_timer)
+        self.update_timer.start(self.update_interval * ext.MillisecondsInSecond)
 
         # Start the Bot
         self.updater.start_polling()
@@ -287,8 +318,11 @@ class CMemesBot(QObject):
             ext.logger.warning("bot.py: restricted: unauthorized access denied for {}.".format(user_id))
             return
 
-        command_list = self.command_map.keys()
+        command_list = list(self.command_map.keys())
+        command_list += [CommandSetPostIntervalMin, CommandSetPostIntervalMax]
+
         command_list = list(map(lambda command: '/' + command, command_list))
+
         update.message.reply_text('Commands:\n' + '\n'.join(command_list))
 
     def update_photos(self):
@@ -351,6 +385,38 @@ class CMemesBot(QObject):
             self.db_manager.remove_album_id(album_id)
 
         update.message.reply_text('Успех!')
+
+    # getters and setters
+    def command_get_post_interval_min(self, bot, update):
+        minutes_num, minutes_word = agree_minutes(self.post_interval_min)
+        update.message.reply_text(MessageFormatPostIntervalMin.format(minutes_num, minutes_word))
+
+    def command_set_post_interval_min(self, bot, update, args):
+        success, minutes_str, minutes_int = t_tools.extract_int_argument(args)
+        if not success:
+            ext.logger.error('CMemesBot: command_set_post_interval_min: failed to extract int from string {}'.format(minutes_str))
+            update.message.reply_text(MessagePassMinutesAsOneNumber)
+            return
+
+        minutes_old_num, minutes_old_word = agree_minutes(self.post_interval_min)
+        self.post_interval_min = minutes_int * ext.MinutesInHour
+        update.message.reply_text(MessageFormatPostIntervalMinUpdated.format(minutes_int, minutes_old_num, minutes_old_word))
+
+    def command_get_post_interval_max(self, bot, update):
+        minutes_num, minutes_word = agree_minutes(self.post_interval_max)
+        update.message.reply_text(MessageFormatPostIntervalMin.format(minutes_num, minutes_word))
+
+    def command_set_post_interval_max(self, bot, update, args):
+        success, minutes_str, minutes_int = t_tools.extract_int_argument(args)
+        if not success:
+            ext.logger.error('CMemesBot: command_set_post_interval_max: failed to extract int from string {}'.format(minutes_str))
+            update.message.reply_text(MessagePassMinutesAsOneNumber)
+            return
+
+        minutes_old_num, minutes_old_word = agree_minutes(self.post_interval_max)
+        self.post_interval_max = minutes_int * ext.MinutesInHour
+        update.message.reply_text(MessageFormatPostIntervalMinUpdated.format(minutes_int, minutes_old_num, minutes_old_word))
+
 
     def post_next(self):
 
@@ -419,7 +485,7 @@ class CMemesBot(QObject):
 
         delay = tools.current_delay(self.post_interval_min, self.post_interval_max, self.best_minute)
         ext.logger.info('CMemesBot: on_post_timer: post successful, next in {} minutes'.format(delay / 60))
-        self.post_timer.singleShot(delay * ext.TimerSecondsMultiplier, self.on_post_timer)
+        self.post_timer.singleShot(delay * ext.MillisecondsInSecond, self.on_post_timer)
 
     @pyqtSlot(name='on_update_timer')
     def on_update_timer(self):

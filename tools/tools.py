@@ -1,4 +1,3 @@
-import math
 import datetime
 import logging
 import logging.handlers as handlers
@@ -6,6 +5,9 @@ import logging.handlers as handlers
 import extern as ext
 
 import tools.vk_tools as vk_tools
+
+import pymorphy2
+morph = pymorphy2.MorphAnalyzer()
 
 
 DelayCoefficientDistribution = {
@@ -34,11 +36,6 @@ DelayCoefficientDistribution = {
     22: 0.05,
     23: 0.1
 }
-
-MinutesInHour = 60
-
-HoursInDay = 24
-MinutesInDay = HoursInDay * MinutesInHour
 
 
 def prepare_log(filename, log_level=None):
@@ -83,7 +80,7 @@ def get_photo_id_from_photo(photo):
 def calculate_delay_seconds(min_delay, max_delay, best_minute, minute_of_the_day):
 
     # coeff = 1 - (1 + math.cos(2 * math.pi * (minute_of_the_day - best_minute) / MinutesInDay)) / 2
-    hour_of_the_day = minute_of_the_day // MinutesInHour
+    hour_of_the_day = minute_of_the_day // ext.MinutesInHour
     coeff = DelayCoefficientDistribution.get(hour_of_the_day)
     if coeff is None or coeff < 0 or coeff > 1:
         ext.logger.error('tools.py: calculate_delay_seconds: invalid coefficient: {}'.format(coeff))
@@ -98,7 +95,7 @@ def randomize_delay(delay, percent_cut=ext.PercentCut, percent_add=ext.PercentAd
 
 def current_minute():
     now = datetime.datetime.now()
-    return now.hour * 60 + now.minute
+    return now.hour * ext.MinutesInHour + now.minute
 
 
 def current_hour():
@@ -113,6 +110,19 @@ def current_delay(min_delay=ext.PostDelayMin, max_delay=ext.PostDelayMax, best_m
 
 
 def print_delays():
-    for i in range(HoursInDay):
-        delay = calculate_delay_seconds(ext.PostDelayMin // MinutesInHour, ext.PostDelayMax // MinutesInHour, 19 * 60, i * MinutesInHour)
+    for i in range(ext.HoursInDay):
+        delay = calculate_delay_seconds(ext.PostDelayMin // ext.MinutesInHour, ext.PostDelayMax // ext.MinutesInHour, 19 * 60, i * ext.MinutesInHour)
         print('{}: {}'.format(i, delay))
+
+
+def agree_word_with_number(word, number):
+    if number < 0:
+        number = -number
+
+    try:
+        parsed_word = morph.parse(word)[0]
+        word = parsed_word.make_agree_with_number(number).word
+        return word
+    except Exception as e:
+        ext.logger.warning('tools: agree_word_with_number: exception: {}'.format(e))
+        return word

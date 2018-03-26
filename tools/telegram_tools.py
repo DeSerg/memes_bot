@@ -63,3 +63,22 @@ def build_reply_markup_verify_mem():
 
 def choose_photo_max_size(photos):
     return max(photos, key=lambda photo: photo.width * photo.height)
+
+
+def extract_int_argument(args):
+    fail_value = False, None, None
+
+    if len(args) != 1:
+        ext.logger.error(
+            'telegram_tools: extract_int_argument: invalid arguments number: {}'.format(len(args)))
+        return fail_value
+
+    arg_str = args[0]
+    try:
+        arg_int = int(arg_str)
+    except Exception as e:
+        ext.logger.error(
+            'telegram_tools: extract_int_argument: failed to extract int from string {}: exception: {}'.format(arg_str, e))
+        return fail_value
+
+    return True, arg_str, arg_int

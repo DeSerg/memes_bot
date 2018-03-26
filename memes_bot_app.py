@@ -18,8 +18,8 @@ ArgTest = 'test'
 def create_initial_directories():
     # create vader app dir
     try:
-        if not os.path.isdir(ext.LogFilepath):
-            os.makedirs(ext.LogFilepath)
+        if not os.path.isdir(ext.LogPath):
+            os.makedirs(ext.LogPath)
 
     except OSError as e:
         print('memes_bot_app.py: create_initial_directories: failed to create initial directories: exception {}'.format(e))
