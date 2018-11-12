@@ -417,7 +417,6 @@ class CMemesBot(QObject):
         self.post_interval_max = minutes_int * ext.MinutesInHour
         update.message.reply_text(MessageFormatPostIntervalMinUpdated.format(minutes_int, minutes_old_num, minutes_old_word))
 
-
     def post_next(self):
 
         photo_url = self.db_manager.get_next_photo_url_from_queue(True)
@@ -453,7 +452,6 @@ class CMemesBot(QObject):
                 self.__post_mem_from_message(update.message)
                 return
 
-            t_tools.build_reply_markup_verify_mem()
             message = update.message
             photos = message.photo
             if not photos:
@@ -462,7 +460,7 @@ class CMemesBot(QObject):
 
             verify_markup = t_tools.build_reply_markup_verify_mem()
 
-            user_name = message.from_user.username
+            user_name = message.from_user.first_name
 
             for admin_id in AdminsListVerifying:
                 self.updater.bot.sendPhoto(
