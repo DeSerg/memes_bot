@@ -17,4 +17,5 @@ python-telegram-bot==11.1.0
 requests==2.20.1
 six==1.11.0
 urllib3==1.24.1
+vk==2.0.2
 vk-api==11.2.1
