@@ -4,3 +4,5 @@ __pycache__
 temp
 *.sqlite3
 vk_config.v2.json
+venv*
+
