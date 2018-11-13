@@ -206,7 +206,7 @@ class CMemesBot(QObject):
             message = update.callback_query.message
 
             username = message.caption[MessageSuggestedUsernameStart:]
-            message_caption = MessageFormatSuggestedByUser.format(username, ext.MemesChannelId)
+            message_caption = MessageFormatSuggestedByUser.format(username, ext.MemesBotName)
 
             self.__post_mem_from_message(message, caption=message_caption)
 
@@ -404,7 +404,7 @@ class CMemesBot(QObject):
 
     def command_get_post_interval_max(self, bot, update):
         minutes_num, minutes_word = agree_minutes(self.post_interval_max)
-        update.message.reply_text(MessageFormatPostIntervalMin.format(minutes_num, minutes_word))
+        update.message.reply_text(MessageFormatPostIntervalMax.format(minutes_num, minutes_word))
 
     def command_set_post_interval_max(self, bot, update, args):
         success, minutes_str, minutes_int = t_tools.extract_int_argument(args)
